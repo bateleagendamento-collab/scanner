@@ -9,11 +9,13 @@
 <!-- ZXing para leitura de código de barras/QR via câmera -->
 <script type="module">
 
+<script type="module">
 import {
   BarcodeDetector
 } from "https://cdn.jsdelivr.net/npm/barcode-detector-polyfill@4/dist/es/polyfill.min.js";
 
 window.BarcodeDetector = BarcodeDetector;
+</script>
 
 </script>
 <style>
@@ -868,6 +870,42 @@ scanInterval = setInterval(async () => {
 
     document.getElementById('camera-status').textContent =
       'Erro ao abrir câmera';
+  }
+}
+function closeCamera() {
+
+  if (scanInterval) {
+    clearInterval(scanInterval);
+    scanInterval = null;
+  }
+
+  const modal = document.getElementById('camera-modal');
+  modal.classList.remove('active');
+
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(track => track.stop());
+    cameraStream = null;
+  }
+
+  detector = null;
+  flashTrack = null;
+  flashOn = false;
+  flashSupported = false;
+
+  const btn = document.getElementById('btn-flash');
+
+  if (btn) {
+    btn.classList.remove('flash-on');
+    btn.classList.add('no-flash');
+  }
+
+  document.getElementById('flash-icon').textContent = '🔦';
+  document.getElementById('flash-label').textContent = 'Flash';
+
+  const video = document.getElementById('camera-video');
+
+  if (video) {
+    video.srcObject = null;
   }
 }
 async function toggleFlash() {
