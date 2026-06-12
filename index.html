@@ -7,7 +7,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- ZXing para leitura de código de barras/QR via câmera -->
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js"></script>
+<script type="module">
+
+import {
+  BarcodeDetector
+} from "https://cdn.jsdelivr.net/npm/barcode-detector-polyfill@4/dist/es/polyfill.min.js";
+
+window.BarcodeDetector = BarcodeDetector;
+
+</script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -654,7 +662,8 @@ let currentFilter = 'all';
 let currentUser   = null;
 
 // Câmera
-let codeReader    = null;
+let detector = null;
+let scanInterval = null;
 let cameraStream  = null;
 let flashTrack    = null;
 let flashOn       = false;
@@ -757,7 +766,22 @@ async function openCamera() {
 
     video.srcObject = cameraStream;
 
-    await video.play();
+    detector = new BarcodeDetector({
+  formats: [
+    'qr_code',
+    'ean_13',
+    'ean_8',
+    'upc_a',
+    'upc_e',
+    'code_128',
+    'code_39',
+    'codabar',
+    'itf',
+    'pdf417',
+    'data_matrix',
+    'aztec'
+  ]
+});
 
     const videoTrack = cameraStream.getVideoTracks()[0];
 
@@ -777,48 +801,61 @@ async function openCamera() {
         .classList.remove('no-flash');
     }
 
-    codeReader = new ZXing.BrowserMultiFormatReader();
+   detector = new BarcodeDetector({
+  formats: [
+    'qr_code',
+    'ean_13',
+    'ean_8',
+    'upc_a',
+    'upc_e',
+    'code_128',
+    'code_39',
+    'codabar',
+    'itf',
+    'pdf417',
+    'data_matrix',
+    'aztec'
+  ]
+});
 
-    document.getElementById('camera-status').textContent =
-      'Procurando código...';
+document.getElementById('camera-status').textContent =
+  'Procurando código...';
 
-    codeReader.decodeFromVideoElement(
-      video,
-      (result, err) => {
+scanInterval = setInterval(async () => {
 
-        if (result) {
+  try {
 
-          const code = result.getText();
+    const barcodes = await detector.detect(video);
 
-          if (
-            code === lastScannedCode &&
-            Date.now() - lastScanTime < 2000
-          ) {
-            return;
-          }
+    if (!barcodes.length) return;
 
-          lastScannedCode = code;
-          lastScanTime = Date.now();
+    const code = barcodes[0].rawValue;
 
-          console.log('CÓDIGO LIDO:', code);
+    if (
+      code === lastScannedCode &&
+      Date.now() - lastScanTime < 2000
+    ) {
+      return;
+    }
 
-          document.getElementById('scan-input').value = code;
+    lastScannedCode = code;
+    lastScanTime = Date.now();
 
-          closeCamera();
+    console.log('CÓDIGO LIDO:', code);
 
-          setTimeout(() => {
-            doScan();
-          }, 100);
-        }
+    document.getElementById('scan-input').value = code;
 
-        if (
-          err &&
-          !(err instanceof ZXing.NotFoundException)
-        ) {
-          console.log(err);
-        }
-      }
-    );
+    closeCamera();
+
+    setTimeout(() => {
+      doScan();
+    }, 100);
+
+  } catch (e) {
+    console.log(e);
+  }
+
+}, 200);
 
   } catch (err) {
 
