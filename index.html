@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- ZXing para leitura de código de barras/QR via câmera -->
-<script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -738,88 +738,101 @@ function logout() {
 // CÂMERA — ZXing
 // ═══════════════════════════════════════════════════
 async function openCamera() {
+
   const modal = document.getElementById('camera-modal');
   modal.classList.add('active');
-  document.getElementById('camera-status').textContent = 'Iniciando câmera…';
+
+  document.getElementById('camera-status').textContent =
+    'Iniciando câmera...';
 
   try {
-    // Pedir câmera traseira preferencialmente
+
     cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      video: {
+        facingMode: "environment"
+      }
     });
 
     const video = document.getElementById('camera-video');
+
     video.srcObject = cameraStream;
+
     await video.play();
 
-    // Verificar suporte ao flash (torch)
     const videoTrack = cameraStream.getVideoTracks()[0];
+
     flashTrack = videoTrack;
-    const capabilities = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+
+    const capabilities =
+      videoTrack.getCapabilities
+        ? videoTrack.getCapabilities()
+        : {};
+
     if (capabilities.torch) {
+
       flashSupported = true;
-      const btn = document.getElementById('btn-flash');
-      btn.classList.remove('no-flash');
+
+      document
+        .getElementById('btn-flash')
+        .classList.remove('no-flash');
     }
 
-    // Iniciar leitor ZXing
-    const hints = new Map();
-    const formats = [
-      ZXing.BarcodeFormat.QR_CODE,
-      ZXing.BarcodeFormat.EAN_13,
-      ZXing.BarcodeFormat.EAN_8,
-      ZXing.BarcodeFormat.CODE_128,
-      ZXing.BarcodeFormat.CODE_39,
-      ZXing.BarcodeFormat.DATA_MATRIX,
-      ZXing.BarcodeFormat.ITF,
-      ZXing.BarcodeFormat.PDF_417,
-    ];
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    codeReader = new ZXing.BrowserMultiFormatReader();
 
-    codeReader = new ZXing.BrowserMultiFormatReader(hints);
-    document.getElementById('camera-status').textContent = 'Aponte para o código de barras ou QR Code';
+    document.getElementById('camera-status').textContent =
+      'Procurando código...';
 
-    codeReader.decodeFromVideoElement(video, (result, err) => {
-      if (result) {
-        const code = result.getText();
-        document.getElementById('scan-input').value = code;
-        closeCamera();
-        doScan();
+    codeReader.decodeFromVideoElement(
+      video,
+      (result, err) => {
+
+        if (result) {
+
+          const code = result.getText();
+
+          if (
+            code === lastScannedCode &&
+            Date.now() - lastScanTime < 2000
+          ) {
+            return;
+          }
+
+          lastScannedCode = code;
+          lastScanTime = Date.now();
+
+          console.log('CÓDIGO LIDO:', code);
+
+          document.getElementById('scan-input').value = code;
+
+          closeCamera();
+
+          setTimeout(() => {
+            doScan();
+          }, 100);
+        }
+
+        if (
+          err &&
+          !(err instanceof ZXing.NotFoundException)
+        ) {
+          console.log(err);
+        }
       }
-      // err silenciosos (frame sem código) são normais
-    });
+    );
 
   } catch (err) {
-    console.error('Câmera erro:', err);
-    document.getElementById('camera-status').textContent = '⚠️ Sem acesso à câmera';
-    toast('Não foi possível acessar a câmera. Verifique as permissões.', 'error');
+
+    console.error(err);
+
+    toast(
+      'Não foi possível acessar a câmera.',
+      'error'
+    );
+
+    document.getElementById('camera-status').textContent =
+      'Erro ao abrir câmera';
   }
 }
-
-function closeCamera() {
-  const modal = document.getElementById('camera-modal');
-  modal.classList.remove('active');
-
-  if (codeReader) {
-    try { codeReader.reset(); } catch(e) {}
-    codeReader = null;
-  }
-  if (cameraStream) {
-    cameraStream.getTracks().forEach(t => t.stop());
-    cameraStream = null;
-  }
-  flashTrack = null;
-  flashOn = false;
-  flashSupported = false;
-  const btn = document.getElementById('btn-flash');
-  btn.classList.remove('flash-on');
-  btn.classList.add('no-flash');
-  document.getElementById('flash-icon').textContent = '🔦';
-  document.getElementById('flash-label').textContent = 'Flash';
-  document.getElementById('camera-video').srcObject = null;
-}
-
 async function toggleFlash() {
   if (!flashSupported || !flashTrack) return;
   flashOn = !flashOn;
