@@ -764,13 +764,13 @@ async function openCamera() {
       }
     });
 
-   const video = document.getElementById('camera-video');
+    const video = document.getElementById('camera-video');
 
-video.srcObject = cameraStream;
+    video.srcObject = cameraStream;
 
-await video.play();
+    await video.play();
 
-detector = new BarcodeDetector({
+    detector = new BarcodeDetector({
   formats: [
     'qr_code',
     'ean_13',
@@ -805,6 +805,21 @@ detector = new BarcodeDetector({
         .classList.remove('no-flash');
     }
 
+   detector = new BarcodeDetector({
+  formats: [
+    'qr_code',
+    'ean_13',
+    'ean_8',
+    'upc_a',
+    'upc_e',
+    'code_128',
+    'code_39',
+    'codabar',
+    'itf',
+    'pdf417',
+    'data_matrix',
+    'aztec'
+  ]
 });
 
 document.getElementById('camera-status').textContent =
